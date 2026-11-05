@@ -4,9 +4,9 @@ import com.sun.net.httpserver.HttpServer;
 
 import java.io.*;
 import java.net.InetSocketAddress;
-import java.net.URI;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 
 public class Main {
     public static void main(String[] args) {
@@ -38,6 +38,7 @@ public class Main {
         server.createContext("/", exchange -> handleRoot(exchange));
         server.createContext("/apps/", exchange -> handleApps(exchange));
         server.createContext("/apps/profile", exchange -> handleProfile(exchange));
+//        server.createContext("/index.html", exchange -> handleFile(exchange));
     }
 
 //    private static void handleRequest(HttpExchange exchange) {
@@ -60,14 +61,14 @@ public class Main {
 //        }
 //    }
 
-    private static void sendHeaders(HttpExchange exchange, int responseCode, int length) throws IOException {
-        exchange.getResponseHeaders().add("Content-Type", "text/plain; charset=utf-8");
+    private static void sendHeaders(HttpExchange exchange,String contentType, int responseCode, int length) throws IOException {
+        exchange.getResponseHeaders().add("Content-Type", "text/" +  contentType + "; charset=utf-8");
         exchange.sendResponseHeaders(responseCode, length);
     }
 
     private static void handleRoot(HttpExchange exchange) {
         try {
-            sendHeaders(exchange, 200, 0);
+            sendHeaders(exchange, "plain",200, 0);
             try (PrintWriter writer = getWriterFrom(exchange)) {
                 writer.write("Hello my friend");
                 writer.flush();
@@ -79,7 +80,7 @@ public class Main {
 
     private static void handleProfile(HttpExchange exchange) {
         try {
-            sendHeaders(exchange, 200, 0);
+            sendHeaders(exchange, "plain",200, 0);
             try (PrintWriter writer = getWriterFrom(exchange)) {
                 String localAddress = exchange.getLocalAddress().toString();
                 String remoteAddress = exchange.getRemoteAddress().toString();
@@ -93,7 +94,7 @@ public class Main {
 
     private static void handleApps(HttpExchange exchange) {
         try {
-            sendHeaders(exchange, 200, 0);
+            sendHeaders(exchange, "plain",200, 0);
             try (PrintWriter writer = getWriterFrom(exchange)) {
                 writeHeaders(writer, "Request headers", exchange.getRequestHeaders());
                 writeData(writer, exchange);
@@ -103,6 +104,13 @@ public class Main {
             e.printStackTrace();
         }
     }
+
+//    private static void handleFile(HttpExchange exchange) {
+//        Path path = Path.of("homework",)
+//        try {
+//            sendHeaders();
+//        }
+//    }
 
     private static PrintWriter getWriterFrom(HttpExchange exchange) throws IOException {
         OutputStream outputStream = exchange.getResponseBody();
