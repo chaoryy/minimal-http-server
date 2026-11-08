@@ -5,7 +5,8 @@ public enum ContentType {
     CSS ("text/css; charset=utf-8"),
     PLAIN("text/plain; charset=utf-8"),
     PNG ("image/png"),
-    JPEG ("image/jpeg");
+    JPEG ("image/jpeg"),
+    JPG ("image/jpeg");
 
     private final String mimeType;
 
@@ -14,10 +15,12 @@ public enum ContentType {
     }
 
     public static ContentType getContentTypeFrom(String path) {
+        path = path.toLowerCase();
         if (path.endsWith(".html")) return HTML;
         if (path.endsWith(".css")) return CSS;
         if (path.endsWith(".png")) return PNG;
         if (path.endsWith(".jpeg")) return JPEG;
+        if (path.endsWith(".jpg")) return JPG;
         return PLAIN;
     }
 

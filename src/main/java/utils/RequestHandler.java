@@ -5,39 +5,43 @@ import enums.ContentType;
 import enums.HttpCode;
 
 import java.io.*;
-import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 
 public class RequestHandler {
-    private final Path path = Path.of("homework").toAbsolutePath();
+    private static final Path HOME_PATH = Path.of("homework").toAbsolutePath();
     private final ResponseWriter responseWriter = new ResponseWriter();
 
-    //    private static void handleRequest(HttpExchange exchange) {
-//        try {
-//            sendHeaders(exchange, 200, 0);
-//            try (PrintWriter writer = getWriterFrom(exchange)) {
-//                String method = exchange.getRequestMethod();
-//                URI uri = exchange.getRequestURI();
-//                String path = exchange.getHttpContext().getPath();
-//
-//                write(writer, "HTTP method", method);
-//                write(writer, "Request", uri.toString());
-//                write(writer, "Handler", path);
-//                writeHeaders(writer, "Request headers", exchange.getRequestHeaders());
-//                writeData(writer, exchange);
-//                writer.flush();
-//            }
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        }
-//    }
-
     public void handleRoot(HttpExchange exchange) {
-        String response = "Hello my friend";
-        responseWriter.sendHeaders(exchange, ContentType.PLAIN, HttpCode.OK, response.length());
-        responseWriter.sendResponse(exchange, response);
+        String requestPath = exchange.getRequestURI().getPath();
+        if ("/".equals(requestPath)) {
+            Path indexPath = HOME_PATH.resolve("index.html");
+            if (Files.isRegularFile(indexPath)) {
+                handleFile(exchange, indexPath);
+            }
+        } else {
+            if (requestPath.startsWith("/")) {
+                requestPath = requestPath.substring(1);
+            }
+            try {
+                Path basePath = HOME_PATH.toRealPath();
+                Path resolved = HOME_PATH.resolve(requestPath).normalize();
+                Path realResolved = resolved.toRealPath();
+                if (!realResolved.startsWith(basePath) || !Files.isRegularFile(realResolved)) {
+                    sendErrorResponse(exchange);
+                    return;
+                }
+                handleFile(exchange, realResolved);
+            } catch (NoSuchFileException | InvalidPathException e) {
+                sendErrorResponse(exchange);
+            } catch (IOException e) {
+                responseWriter.sendResponse(exchange, ContentType.PLAIN, HttpCode.SERVER_ERROR, getBytesFrom(HttpCode.SERVER_ERROR));
+            }
+        }
+
     }
 
     public void handleProfile(HttpExchange exchange) {
@@ -47,36 +51,36 @@ public class RequestHandler {
         String response = String.format("Local address: %s%n " +
                 "Remote address: %s%n" +
                 "Host address: %s%n", localAddress, remoteAddress, hostAddress);
-        responseWriter.sendHeaders(exchange, ContentType.PLAIN, HttpCode.OK, response.length());
-        responseWriter.sendResponse(exchange, response);
+        responseWriter.sendResponse(exchange, ContentType.PLAIN, HttpCode.OK, getBytesFrom(response));
 
     }
 
     public void handleApps(HttpExchange exchange) {
-        String response = exchange.getRequestMethod().toString();
-        responseWriter.sendHeaders(exchange, ContentType.PLAIN, HttpCode.OK, response.length());
-        responseWriter.sendResponse(exchange, response);
+        String response = exchange.getRequestMethod();
+        responseWriter.sendResponse(exchange, ContentType.PLAIN, HttpCode.OK, getBytesFrom(response));
     }
 
-    public void handleFile(HttpExchange exchange) {
+    public void handleFile(HttpExchange exchange, Path filePath) {
         try {
-            String requestPath = exchange.getRequestURI().getPath();
-            if (requestPath.startsWith("/")) {
-                requestPath = requestPath.substring(1);
-            }
-            Path resolved = path.resolve(requestPath).normalize();
-            byte[] bytes = Files.readAllBytes(resolved);
-            responseWriter.sendHeaders(exchange, ContentType.HTML, HttpCode.OK, bytes.length);
-            responseWriter.sendResponse(exchange, bytes);
+            ContentType contentType = ContentType.getContentTypeFrom(filePath.toString());
+            byte[] bytes = Files.readAllBytes(filePath);
+            responseWriter.sendResponse(exchange, contentType, HttpCode.OK, bytes);
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            System.out.println("Error while handling file");
+            responseWriter.sendResponse(exchange, ContentType.PLAIN, HttpCode.SERVER_ERROR, getBytesFrom(HttpCode.SERVER_ERROR));
+            e.printStackTrace();
         }
     }
 
-    private static BufferedReader getReader(HttpExchange exchange) {
-        InputStream inputStream = exchange.getRequestBody();
-        Charset charset = StandardCharsets.UTF_8;
-        InputStreamReader inputStreamReader = new InputStreamReader(inputStream, charset);
-        return new BufferedReader(inputStreamReader);
+    private byte[] getBytesFrom(String body) {
+        return body.getBytes(StandardCharsets.UTF_8);
+    }
+
+    private byte[] getBytesFrom(HttpCode code) {
+        return code.toString().getBytes(StandardCharsets.UTF_8);
+    }
+
+    private void sendErrorResponse(HttpExchange exchange) {
+        responseWriter.sendResponse(exchange, ContentType.PLAIN, HttpCode.NOT_FOUND, getBytesFrom(HttpCode.NOT_FOUND));
     }
 }

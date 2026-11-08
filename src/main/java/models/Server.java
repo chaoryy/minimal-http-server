@@ -33,6 +33,5 @@ public class Server {
         server.createContext("/", requestHandler::handleRoot);
         server.createContext("/apps/", requestHandler::handleApps);
         server.createContext("/apps/profile", requestHandler::handleProfile);
-        server.createContext("/index.html", requestHandler::handleFile);
     }
 }
